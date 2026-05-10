@@ -10,8 +10,8 @@ class PatentVerifier(gl.Contract):
     patent_counter: u256
     patent_data: DynArray[str]
 
-    def __init__(self, owner_address: str):
-        self.owner = Address(owner_address)
+    def __init__(self, owner_address: Address):
+        self.owner = owner_address
         self.patent_counter = u256(0)
 
     @gl.public.view
