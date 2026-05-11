@@ -26,26 +26,15 @@ submit_invention takes a title, an invention description of at least 50 characte
 
 verify_patent takes a patent id and triggers the AI patentability evaluation through Optimistic Democracy consensus.
 
-resubmit_invention takes a patent id, an improved description, and a new prior art URL. Only the original submitter can resubmit, and only POSSIBLE or UNLIKELY inventions can be resubmitted. The contract tracks how many times each invention has been resubmitted.
+resubmit_invention takes a patent id, an improved description, and a new prior art URL. This function has three rules: only the original submitter can resubmit their own invention, only inventions with POSSIBLE or UNLIKELY verdicts can be resubmitted (LIKELY inventions are already considered patentable and cannot be re-evaluated), and the invention must be in verified status. The contract tracks how many times each invention has been resubmitted via a submission counter.
 
-get_patent shows the full result of a verification including originality score, patentability verdict, individual status for each requirement, similar patents identified, recommendations, and summary.
+get_patent shows the full result of a verification including originality score, patentability verdict, individual status for each requirement (Novelty, Non Obviousness, Industrial Application), similar patents identified, recommendations, summary, and the total number of submissions for that invention.
 
 get_my_inventions takes a user address and returns all the invention IDs that user has submitted.
 
-get_patents_by_field takes a technical field string and returns all the inventions registered in that field.
+get_patents_by_field takes a technical field string and returns all the inventions registered in that field. The search is partial, so searching for "Drone" will find any patent with "Drone" anywhere in its technical field.
 
-get_summary returns global statistics including total inventions, total verified, distribution between LIKELY, POSSIBLE, and UNLIKELY, and the average originality score across all verified patents.
-
-## Real-world use cases
-
-A startup wants to verify originality before spending 50 thousand dollars on a patent attorney. They use Patent Verifier first to get a structured opinion from multiple AI validators with onchain evidence of when the verification happened.
-
-An investor wants to validate that a portfolio company actually verified its inventions before claiming patent protection. They can audit the onchain records themselves without trusting the company.
-
-A patent marketplace needs a neutral originality score for inventions being bought or sold. Both buyer and seller can verify the same onchain result without trusting a centralized authority.
-
-A university research group wants to prove date and content of their innovations before publication or filing. Every verification on Patent Verifier is timestamped and signed.
-
+get_summary returns global statistics including total inventions submitted, total verified, distribution between LIKELY, POSSIBLE, and UNLIKELY, and the average originality score across all verified patents.
 ## Test results
 
 Tested with multiple inventions to validate the contract works across different technical fields.
