@@ -9,11 +9,9 @@ class PatentVerifier(gl.Contract):
     owner: Address
     patent_counter: u256
     patent_data: DynArray[str]
-    user_inventions: DynArray[str]
-    field_index: DynArray[str]
 
-    def __init__(self, owner_address: str):
-        self.owner = Address(owner_address)
+    def __init__(self, owner_address: Address):
+        self.owner = owner_address
         self.patent_counter = u256(0)
 
     @gl.public.view
@@ -24,18 +22,15 @@ class PatentVerifier(gl.Contract):
         return (
             f"ID: {patent_id} | "
             f"Title: {title} | "
-            f"Submitter: {self._get(patent_id, 'submitter')} | "
             f"Status: {self._get(patent_id, 'status')} | "
             f"Originality Score: {self._get(patent_id, 'originality_score')}/100 | "
             f"Patentable: {self._get(patent_id, 'patentable')} | "
             f"Novelty: {self._get(patent_id, 'novelty')} | "
             f"Non Obviousness: {self._get(patent_id, 'non_obviousness')} | "
             f"Industrial Application: {self._get(patent_id, 'industrial_application')} | "
-            f"Technical Field: {self._get(patent_id, 'technical_field')} | "
             f"Similar Patents: {self._get(patent_id, 'similar_patents')} | "
             f"Recommendations: {self._get(patent_id, 'recommendations')} | "
-            f"Summary: {self._get(patent_id, 'summary')} | "
-            f"Submissions: {self._get(patent_id, 'submission_count')}"
+            f"Summary: {self._get(patent_id, 'summary')}"
         )
 
     @gl.public.view
@@ -43,63 +38,10 @@ class PatentVerifier(gl.Contract):
         return self.patent_counter
 
     @gl.public.view
-    def get_my_inventions(self, user_address: str) -> str:
-        ids = []
-        for i in range(len(self.user_inventions)):
-            entry = self.user_inventions[i]
-            parts = entry.split(":")
-            if len(parts) == 2 and parts[0].lower() == user_address.lower():
-                ids.append(parts[1])
-        if not ids:
-            return "No inventions found for this user"
-        return f"User {user_address[:10]}... has {len(ids)} invention(s): {','.join(ids)}"
-
-    @gl.public.view
-    def get_patents_by_field(self, technical_field: str) -> str:
-        ids = []
-        for i in range(len(self.field_index)):
-            entry = self.field_index[i]
-            parts = entry.split(":", 1)
-            if len(parts) == 2 and technical_field.lower() in parts[0].lower():
-                ids.append(parts[1])
-        if not ids:
-            return f"No patents found in field: {technical_field}"
-        return f"Field '{technical_field}' has {len(ids)} patent(s): {','.join(ids)}"
-
-    @gl.public.view
     def get_summary(self) -> str:
-        total = int(self.patent_counter)
-        verified = 0
-        likely = 0
-        possible = 0
-        unlikely = 0
-        avg_score = 0
-        total_score = 0
-        for i in range(total):
-            pid = str(i)
-            status = self._get(pid, "status")
-            if status == "verified":
-                verified += 1
-                patentable = self._get(pid, "patentable")
-                if patentable == "LIKELY":
-                    likely += 1
-                elif patentable == "POSSIBLE":
-                    possible += 1
-                elif patentable == "UNLIKELY":
-                    unlikely += 1
-                score_str = self._get(pid, "originality_score")
-                if score_str.isdigit():
-                    total_score += int(score_str)
-        if verified > 0:
-            avg_score = total_score // verified
         return (
-            f"GenLayer AI Patent Verifier - Global Stats\n"
-            f"Total Inventions Submitted: {total}\n"
-            f"Total Verified: {verified}\n"
-            f"Likely Patentable: {likely}\n"
-            f"Possible: {possible}\n"
-            f"Unlikely: {unlikely}\n"
-            f"Average Originality Score: {avg_score}/100"
+            f"GenLayer AI Patent Verifier\n"
+            f"Total Patent Verifications: {int(self.patent_counter)}"
         )
 
     @gl.public.write
@@ -119,7 +61,7 @@ class PatentVerifier(gl.Contract):
         caller = str(gl.message.sender_address)
 
         self._set(patent_id, "title", title)
-        self._set(patent_id, "description", invention_description[:1500])
+        self._set(patent_id, "description", invention_description[:1000])
         self._set(patent_id, "technical_field", technical_field)
         self._set(patent_id, "prior_art_url", prior_art_url)
         self._set(patent_id, "submitter", caller)
@@ -132,50 +74,9 @@ class PatentVerifier(gl.Contract):
         self._set(patent_id, "similar_patents", "")
         self._set(patent_id, "recommendations", "")
         self._set(patent_id, "summary", "")
-        self._set(patent_id, "submission_count", "1")
 
-        self.user_inventions.append(f"{caller}:{patent_id}")
-        self.field_index.append(f"{technical_field}:{patent_id}")
         self.patent_counter = u256(int(self.patent_counter) + 1)
-
         return f"Invention {patent_id} submitted for patent verification: {title}"
-
-    @gl.public.write
-    def resubmit_invention(
-        self,
-        patent_id: str,
-        improved_description: str,
-        new_prior_art_url: str,
-    ) -> str:
-        existing_status = self._get(patent_id, "status")
-        assert existing_status == "verified", "Patent must be already verified to be resubmitted"
-
-        caller = str(gl.message.sender_address)
-        original_submitter = self._get(patent_id, "submitter")
-        assert caller.lower() == original_submitter.lower(), "Only the original submitter can resubmit"
-
-        patentable = self._get(patent_id, "patentable")
-        assert patentable in ("POSSIBLE", "UNLIKELY"), "Only POSSIBLE or UNLIKELY patents can be resubmitted"
-
-        assert len(improved_description) >= 50, "Improved description too short"
-        assert len(new_prior_art_url) >= 10, "Prior art URL too short"
-
-        submission_count = int(self._get(patent_id, "submission_count") or "1")
-
-        self._set(patent_id, "description", improved_description[:1500])
-        self._set(patent_id, "prior_art_url", new_prior_art_url)
-        self._set(patent_id, "status", "pending")
-        self._set(patent_id, "originality_score", "0")
-        self._set(patent_id, "patentable", "")
-        self._set(patent_id, "novelty", "")
-        self._set(patent_id, "non_obviousness", "")
-        self._set(patent_id, "industrial_application", "")
-        self._set(patent_id, "similar_patents", "")
-        self._set(patent_id, "recommendations", "")
-        self._set(patent_id, "summary", "")
-        self._set(patent_id, "submission_count", str(submission_count + 1))
-
-        return f"Invention {patent_id} resubmitted with improved evidence. Call verify_patent to re-evaluate. (Submission #{submission_count + 1})"
 
     @gl.public.write
     def verify_patent(self, patent_id: str) -> str:
